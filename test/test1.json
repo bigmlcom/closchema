@@ -1,8 +1,8 @@
 {
-    "description" : "A test schema for checking referencing"
-    "type" : "object"
-    "properties" {
-        "name" : {"type" : "string"}
+    "description" : "A test schema for checking referencing",
+    "type" : "object",
+    "properties" : {
+        "name" : {"type" : "string"},
         "info" : {"$ref" : "test2.json"}
     }
 }

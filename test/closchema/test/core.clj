@@ -1,7 +1,8 @@
 (ns closchema.test.core
-  (:use [closchema.core :only [validate]]
-        [clojure.data.json :only [read-json]]
-        [clojure.test]))
+  (:require (cheshire [core :as cheshire])
+            (closchema [core :as closchema :refer [validate]])
+            (clojure.java [io :as io]))
+  (:use clojure.test))
 
 (def base-schema {:type "object"
                   :properties {:id {:type "number"}
@@ -23,7 +24,7 @@
                   :items {:type ["integer"
                                  {:$ref "test1.json"}]}})
 
-(def self-ref (read-json (slurp (clojure.java.io/resource "self-ref.json"))))
+(def self-ref (cheshire/decode (slurp (io/resource "self-ref.json")) true))
 
 (def extends-schema {:type "object"
                      :extends {:$ref "test2.json"}

@@ -1,6 +1,6 @@
 {   "type": "object",
     "properties": {
-        "id": {"type": "integer"}
+        "id": {"type": "integer"},
         "children": {
             "optional": true,
             "type": "array",

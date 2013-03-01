@@ -3,9 +3,10 @@
    http://tools.ietf.org/html/draft-zyp-json-schema-02 Main purposed
    is to allow object validation, but schema metadata can be used for
    exposing contracts as well."
-  (:use clojure.walk clojure.template)
-  (:require [clojure.set :as set]
-            [clojure.data.json :as json]))
+  (:require (cheshire [core :as cheshire])
+            (clojure.java [io :as io])
+            (clojure [set :as set]
+                     [template :as template])))
 
 
 (def ^:dynamic *errors*
@@ -35,13 +36,45 @@
        (body#))))
 
 
-(defmacro walk-in
+(defmacro ^:private walk-in
   "Step inside a relative path, from a previous object. This
    information is useful for reporting."
   [_ rel-path & body]
   `(binding [*path* (conj *path* ~rel-path)] ~@body))
 
-(defmacro invalid
+(defmacro report-errors
+  "Returns all errors, instead of simple boolean."
+  [& args]
+  `(binding [process-errors (fn [errors#] errors#)]
+     (with-validation-context
+       (do ~@args))))
+
+(defmulti ^:private validate*
+  "Dispatch on object type for validation. If not implemented,
+   performs only basic type validation. Users can extend which types
+   are supported by implementing validation for new types."
+  (fn [schema instance]
+    (cond
+      (or (= (:type schema) "integer") (= (:type schema) "number")) ::value
+      (string? schema) ::simple
+      (vector? (:type schema)) ::union
+      (:$ref schema) ::ref
+      (:enum schema) ::enum
+      (:type schema) (keyword (:type schema)))))
+
+(defn validate
+  "Entry point. A validation context is created and validation is
+   dispatched to the appropriated multimethod."
+  [schema instance]
+  (with-validation-context
+    (validate* schema instance)))
+
+(defn- read-schema* [loc]
+  (cheshire/parse-string (slurp (io/resource loc)) true))
+
+(def ^:private read-schema (memoize read-schema*))
+
+(defmacro ^:private invalid
   "Register an invalid piece of data according to schema."
   [& args]
   (let [[path args] (if (keyword? (first args))
@@ -55,45 +88,12 @@
        (when *errors* (swap! *errors* conj error#))
        (process-errors (list error#)))))
 
+(def ^:private default-type "object")
 
-(defmacro report-errors
-  "Returns all errors, instead of simple boolean."
-  [& args]
-  `(binding [process-errors (fn [errors#] errors#)]
-     (with-validation-context
-       (do ~@args))))
-
-(defn- read-schema [loc]
-  ((memoize (comp json/read-json slurp clojure.java.io/resource)) loc))
-
-(defmulti validate*
-  "Dispatch on object type for validation. If not implemented,
-   performs only basic type validation. Users can extend which types
-   are supported by implementing validation for new types."
-  (fn [schema instance]
-    (cond
-      (or (= (:type schema) "integer") (= (:type schema) "number")) ::value
-      (string? schema) ::simple
-      (vector? (:type schema)) ::union
-      (:$ref schema) ::ref
-      (:enum schema) ::enum
-      (:type schema) (keyword (:type schema)))))
-
-
-(defn validate
-  "Entry point. A validation context is created and validation is
-   dispatched to the appropriated multimethod."
-  [schema instance]
-  (with-validation-context
-    (validate* schema instance)))
-
-
-(def default-type "object")
-
-(defmethod validate* nil [schema instance]
+(defmethod ^:private validate* nil [schema instance]
   (validate (merge schema {:type default-type}) instance))
 
-(defmethod validate* ::ref [schema instance]
+(defmethod ^:private validate* ::ref [schema instance]
   (validate (read-schema (:$ref schema)) instance))
 
 ;; This implementation of the multimethod is needed so that
@@ -101,7 +101,7 @@
 ;; (e.g., {:type "object" . . .}).  It causes strings like
 ;; "number" to constitute a valid json spec according to
 ;; validate, but that doesn't seem like a bad idea.
-(defmethod validate* ::simple [schema instance]
+(defmethod ^:private validate* ::simple [schema instance]
   (validate {:type schema} instance))
 
 ;; Basically, try all the types with the error queue bound to a "fresh"
@@ -129,7 +129,7 @@
        "any" (constantly true)})
 
 
-(defn check-basic-type
+(defn- check-basic-type
   "Validate basic type definition for known types."
   [{t :type :as schema} instance]
   (or (and (nil? instance) (:optional schema))
@@ -142,18 +142,18 @@
                             :actual (str (type instance))})))))
 
 
-(defn common-validate [schema instance]
+(defn- common-validate [schema instance]
   (check-basic-type schema instance)
   (comment TODO
            disallow
            extends))
 
 
-(defmethod validate* :default [schema instance]
+(defmethod ^:private validate* :default [schema instance]
   (common-validate schema instance))
 
 
-(defmethod validate* :object
+(defmethod ^:private validate* :object
   [{properties-schema :properties
     additional-schema :additionalProperties
     parent :extends
@@ -170,7 +170,7 @@
   ;; validate properties defined in schema
   (doseq [[property-name
            {optional :optional :as property-schema}] properties-schema]
-    (let [prop-exists (contains? instance property-name)]
+    (let [prop-exists (and (map? instance) (contains? instance property-name))]
       (when-not (or prop-exists optional)
         (invalid property-name :required))))
 
@@ -178,7 +178,8 @@
   (if (map? instance)
     (doseq [[property-name property] instance]
       (if-let [{requires :requires :as property-schema}
-               (or (and (map? properties-schema) (properties-schema property-name))
+               (or (and (map? properties-schema)
+                        (properties-schema property-name))
                    (and (map? additional-schema) additional-schema))]
         (do
           (when (and requires property
@@ -201,7 +202,7 @@
                  {:properties additionals})))))
 
 
-(defmethod validate* :array
+(defmethod ^:private validate* :array
   [{items-schema :items
     unique? :uniqueItems :as schema} instance]
 
@@ -210,7 +211,7 @@
   ;; specific array validation
   (when (sequential? instance)
     (let [total (count instance)]
-      (do-template [key op]
+      (template/do-template [key op]
                    (if-let [expected (key schema)]
                      (when (op total expected)
                        (invalid key {:expected expected :actual total})))
@@ -236,12 +237,13 @@
                              (vector? items-schema)
                              (merge schema
                                     {:type "object"
-                                     :properties (zipmap (range (count items-schema))
-                                                         items-schema)}))]
+                                     :properties
+                                     (zipmap (range (count items-schema))
+                                             items-schema)}))]
         (validate obj-schema obj-array)))))
 
 
-(defmethod validate* :string
+(defmethod ^:private validate* :string
   [schema instance]
   (common-validate schema instance)
   (when (string? instance)
@@ -258,13 +260,13 @@
         (invalid :pattern-not-matched
                  {:pattern (schema :pattern) :actual instance})))))
 
-(defmethod validate* ::enum
+(defmethod ^:private validate* ::enum
   [schema instance]
   (if-not (true? (some #(= % instance) (schema :enum)))
     (invalid :value-not-in-enum {:enum (schema :enum) :value instance })))
 
 
-(defmethod validate* ::value
+(defmethod ^:private validate* ::value
   [schema instance]
   (common-validate schema instance)
   (when (number? instance)

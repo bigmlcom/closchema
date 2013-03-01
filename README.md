@@ -35,9 +35,9 @@ using the key `$ref` when describing a property:
 
 ```json
 {
-    "type" : "object"
+    "type" : "object",
     "properties" : {
-        "id" : {"type" : "integer"}
+        "id" : {"type" : "integer"},
         "address" : {"$ref" : "path/to/file"}
     }
 }
@@ -64,8 +64,8 @@ schema in `"file1.json"`.
 
 ```json
 {
-    "type" : "object"
-    "extends" : {"$ref" : "file1.json"}
+    "type" : "object",
+    "extends" : {"$ref" : "file1.json"},
     "properties" : {
         "id" : {"type" : "integer"}
     }
@@ -76,8 +76,8 @@ Multiple inheritance also has the expected semantics:
 
 ```json
 {
-    "type" : "object"
-    "extends" : [{"$ref" : "file1.json"} {"$ref" : "file2.json"}]
+    "type" : "object",
+    "extends" : [{"$ref" : "file1.json"}, {"$ref" : "file2.json"}],
     "properties" : {
         "id" : {"type" : "integer"}
     }
@@ -91,5 +91,4 @@ empty.  That is, `:additionalProperties` takes precedence over `:extends`.
 ## TODO
 
 The entire spec http://tools.ietf.org/html/draft-zyp-json-schema-03 is
-not implemented yet. We'll gradually support more features when needed.
-
+not implemented yet. We'll gradually support more features as needed.
