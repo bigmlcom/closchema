@@ -1,8 +1,5 @@
 (ns closchema.core
-  "This is JSON Schema in Clojure. See
-   http://tools.ietf.org/html/draft-zyp-json-schema-02 Main purposed
-   is to allow object validation, but schema metadata can be used for
-   exposing contracts as well."
+  "JSON Schema validation in Clojure. See http://json-schema.org."
   (:require (cheshire [core :as cheshire])
             (clojure.java [io :as io])
             (clojure [set :as set]
