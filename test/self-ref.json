@@ -1,10 +1,12 @@
 {   "type": "object",
+    "required": true,
     "properties": {
-        "id": {"type": "integer"},
+        "id": {"type": "integer",
+               "required": true},
         "children": {
-            "optional": true,
             "type": "array",
-            "items": {"$ref": "self-ref.json"}
+            "items": {"$ref": "self-ref.json",
+                      "required": true}
         }
     }
 }

@@ -5,35 +5,51 @@
   (:use clojure.test))
 
 (def base-schema {:type "object"
-                  :properties {:id {:type "number"}
-                               :name {:type "string"}
-                               :description {:optional true :type "string"}}})
+                  :required true
+                  :properties {:id {:type "number"
+                                    :required true}
+                               :name {:type "string"
+                                      :required true}
+                               :description {:type "string"}}})
 
 ;; Union type containing either an ID number or a first and last name
 (def union-schema {:type ["integer" {:type "object"
+                                     :required true
                                      :properties {:first-name
-                                                  {:type "string"}
+                                                  {:type "string"
+                                                   :required true}
                                                   :last-name
-                                                  {:type "string"}}}]})
+                                                  {:type "string"
+                                                   :required true}}}]
+                   :required true})
 
 (def read-schema {:type "object"
-                  :properties {:person {:$ref "test1.json"}
-                               :dog-name {:type "string"}}})
+                  :required true
+                  :properties {:person {:$ref "test1.json"
+                                        :required true}
+                               :dog-name {:type "string"
+                                          :required true}}})
 
 (def union-array {:type "array"
+                  :required true
                   :items {:type ["integer"
                                  {:$ref "test1.json"}]}})
 
 (def self-ref (cheshire/decode (slurp (io/resource "self-ref.json")) true))
 
 (def extends-schema {:type "object"
+                     :required true
                      :extends {:$ref "test2.json"}
-                     :properties {:id {:type "integer"}}})
+                     :properties {:id {:type "integer"
+                                       :required true}}})
 
 (def extends-mult {:type "object"
+                   :required true
                    :extends [{:$ref "test2.json"}
                              {:type "object"
-                              :properties {:name {:type "string"}}}]})
+                              :required true
+                              :properties {:name {:type "string"
+                                                  :required true}}}]})
 
 (def json1-item {:name "Fred" :info {:odor "wet dog" :human? true}})
 
@@ -67,10 +83,10 @@
 (deftest validate-additional-properties-fields
   (let [s (assoc base-schema
             :properties (merge (base-schema :properties)
-                               {:address  {:type "string" :optional true}
+                               {:address  {:type "string" :required false}
                                 :address2 {:type "string"
                                            :requires "address"
-                                           :optional true}}))]
+                                           :required false}}))]
     (is (validate s {:id 1 :name "john" :address "street"})
         "should validate with non-required")
     (is (validate s {:id 1 :name "john" :address "street" :address2 "country"})
@@ -88,7 +104,9 @@
 (deftest validate-items-with-object-schema
   (let [s1 {:type "array" :items {:type "string"}}
         s2 {:type "array" :items {:type "object"
-                                  :properties {:name {:type "string"}}}}]
+                                  :required true
+                                  :properties {:name {:type "string"
+                                                      :required true}}}}]
     (is (validate s1 []) "should accept empty array")
     (is (and (validate s1 ["a" "b" "c"])
              (validate s2 [{:name "half"} {:name "life"}]))
@@ -98,7 +116,10 @@
         "should not accept if inner item does not follow item schema")))
 
 (deftest validate-items-with-schema-array
-  (let [s {:type "array" :items [{:type "string"} {:type "string"}]}]
+  (let [s {:type "array" :items [{:type "string"
+                                  :required true}
+                                 {:type "string"
+                                  :required true}]}]
     (is (and (validate s ["a" "b"])
              (not (validate s ["a"]))
              (not (validate s ["a" 1])))

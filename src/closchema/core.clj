@@ -129,7 +129,7 @@
 (defn- check-basic-type
   "Validate basic type definition for known types."
   [{t :type :as schema} instance]
-  (or (and (nil? instance) (:optional schema))
+  (or (and (nil? instance) (not (:required schema)))
       (let [t (or t default-type)
             types (if (coll? t) t (vector t))]
         (or (reduce #(or %1 %2)
@@ -166,9 +166,9 @@
 
   ;; validate properties defined in schema
   (doseq [[property-name
-           {optional :optional :as property-schema}] properties-schema]
+           {required :required :as property-schema}] properties-schema]
     (let [prop-exists (and (map? instance) (contains? instance property-name))]
-      (when-not (or prop-exists optional)
+      (when-not (or prop-exists (not required))
         (invalid property-name :required))))
 
   ;; validate instance properties (using individual or additional schema)
@@ -184,7 +184,7 @@
             (invalid requires :required {:required-by property-name}))
 
 
-          (when-not (and (:optional :property-schema) (nil? instance))
+          (when-not (and (not (:required :property-schema)) (nil? instance))
             (walk-in instance property-name
                      (validate property-schema property))))))
     (invalid :objects-must-be-maps {:properties properties-schema}))

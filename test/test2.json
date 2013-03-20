@@ -1,8 +1,11 @@
 {
     "description" : "Another test schema",
     "type" : "object",
+    "required": true,
     "properties" : {
-        "odor" : {"enum" : ["wet dog", "roses"]},
-        "human?" : {"type" : "boolean"}
+        "odor" : {"enum" : ["wet dog", "roses"],
+                  "required": true},
+        "human?" : {"type" : "boolean",
+                    "required": true}
     }
 }
