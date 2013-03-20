@@ -18,6 +18,13 @@
   "Default processing just outputs a boolean return."
   (fn [errors] (= (count errors) 0)))
 
+(defn ^:private required?
+  [schema]
+  ; "required" has precedence over "optional",
+  ; and properties are not required by default.
+  (if (not (nil? (:required schema)))
+    (:required schema)
+    (= false (:optional schema))))
 
 (defmacro with-validation-context
   "Defines a binding to allow access to the root object and to enable
@@ -129,7 +136,7 @@
 (defn- check-basic-type
   "Validate basic type definition for known types."
   [{t :type :as schema} instance]
-  (or (and (nil? instance) (not (:required schema)))
+  (or (and (nil? instance) (not (required? schema)))
       (let [t (or t default-type)
             types (if (coll? t) t (vector t))]
         (or (reduce #(or %1 %2)
@@ -165,10 +172,10 @@
       (validate parent instance)))
 
   ;; validate properties defined in schema
-  (doseq [[property-name
-           {required :required :as property-schema}] properties-schema]
+  (doseq [[property-name property-schema] properties-schema]
     (let [prop-exists (and (map? instance) (contains? instance property-name))]
-      (when-not (or prop-exists (not required))
+      (when-not (or prop-exists
+                    (not (required? property-schema)))
         (invalid property-name :required))))
 
   ;; validate instance properties (using individual or additional schema)
@@ -184,7 +191,7 @@
             (invalid requires :required {:required-by property-name}))
 
 
-          (when-not (and (not (:required property-schema)) (nil? instance))
+          (when-not (and (not (required? property-schema)) (nil? instance))
             (walk-in instance property-name
                      (validate property-schema property))))))
     (invalid :objects-must-be-maps {:properties properties-schema}))

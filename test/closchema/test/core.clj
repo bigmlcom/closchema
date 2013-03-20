@@ -359,3 +359,56 @@
 
 (deftest validate-type-array-with-number-input
          (is (not (validate {:type "array" :items {:type "integer"}} 1))))
+
+;; Test all combinations of :optional and :required
+(deftest validate-with-required-or-optional-keys
+  ;; With no :required or :optional params, the key is not required
+  (let [schema {:type "object"
+                            :properties {:id {:type "integer"}}}]
+    (is (validate schema {})))
+
+  ;; With a ":required true" param, the key is required
+  (let [schema {:type "object" :properties {:id {:type "integer"
+                                                          :required true}}}]
+    (is (not (validate schema {}))))
+
+  ;; With a ":required false" param, the key is not required
+  (let [schema {:type "object" :properties {:id {:type "integer"
+                                                          :required false}}}]
+    (is (validate schema {})))
+
+  ;; With an ":optional true" param, the key is not required
+  (let [schema {:type "object" :properties {:id {:type "integer"
+                                                          :optional true}}}]
+    (is (validate schema {})))
+
+  ;; With an ":optional false" param, the key is required
+  (let [schema {:type "object" :properties {:id {:type "integer"
+                                                          :optional false}}}]
+    (is (not (validate schema {}))))
+
+  ;; With ":required false" and ":optional true", the key is not required
+  (let [schema {:type "object" :properties {:id {:type "integer"
+                                                          :required false
+                                                          :optional true}}}]
+    (is (validate schema {})))
+
+  ;; With ":required true" and ":optional false", the key is required
+  (let [schema {:type "object" :properties {:id {:type "integer"
+                                                          :required true
+                                                          :optional false}}}]
+    (is (not (validate schema {}))))
+
+  ;; :required has precedence over :optional
+  ;; With a ":required false"  ":optional false" param, the key is not required
+  (let [schema {:type "object" :properties {:id {:type "integer"
+                                                          :required false
+                                                          :optional false}}}]
+    (is (validate schema {})))
+
+  ;; :required has precedence over :optional
+  ;; With a ":required true"  ":optional true" param, the key is required
+  (let [schema {:type "object" :properties {:id {:type "integer"
+                                                          :required true
+                                                          :optional true}}}]
+    (is (not (validate schema {})))))
