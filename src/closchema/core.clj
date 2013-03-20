@@ -184,7 +184,7 @@
             (invalid requires :required {:required-by property-name}))
 
 
-          (when-not (and (not (:required :property-schema)) (nil? instance))
+          (when-not (and (not (:required property-schema)) (nil? instance))
             (walk-in instance property-name
                      (validate property-schema property))))))
     (invalid :objects-must-be-maps {:properties properties-schema}))
