@@ -5,4 +5,5 @@ lib
 /classes/
 /.lein-failures
 /.lein-deps-sum
+/.lein-repl-history
 /target/
