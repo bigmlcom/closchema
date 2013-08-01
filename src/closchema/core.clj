@@ -222,10 +222,12 @@
                    :minItems <
                    :maxItems >))
 
-    (if-let [unique? (:uniqueItems schema)]
-      (reduce (fn [l r] (when-not (= l r)
-                          (invalid :uniqueItems {:l l :r r}))
-                r) instance))
+    (when unique?
+      (reduce (fn [already x] (when (already x)
+                                (invalid :uniqueItems {:duplicate x}))
+                (conj already x))
+              #{}
+              instance))
 
     ;; treat array as object for further common validation
     (when items-schema

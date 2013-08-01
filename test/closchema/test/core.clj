@@ -142,12 +142,12 @@
 
 (deftest validate-items-with-unique-items-set
   (let [s {:type "array" :uniqueItems true}]
-    (is (validate s [1 1]) "of type numbers")
-    (is (validate s ["a" "a" "a"]) "of type strings")
-    (is (validate s [{:a 1} {:a 1} {:a 1}]) "of type objects")
-    (is (not (validate s [1 2 3])) "of type numbers")
-    (is (not (validate s ["a" "b"])) "of type strings")
-    (is (not (validate s [{:a 1} {:b 1} {:a 1}])) "of type objects")))
+    (is (validate s [1 2 3]) "of type numbers")
+    (is (validate s ["a" "b"]) "of type strings")
+    (is (validate s [{:a 1} {:b 1} {:a 2}]) "of type objects")
+    (is (not (validate s [1 1])) "of type numbers")
+    (is (not (validate s ["a" "b" "c" "b"])) "of type strings")
+    (is (not (validate s [{:a 1} {:a 2} {:a 1}])) "of type objects")))
 
 (deftest validate-items-with-bounds
   (let [s1 {:type "array" :minItems 2 :items {:type "number"}}
