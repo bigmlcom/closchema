@@ -1,4 +1,4 @@
-(defproject bigml/closchema "0.4"
+(defproject bigml/closchema "0.5-SNAPSHOT"
   :description "Implements the JSON Schema specification."
-  :dependencies [[cheshire "5.0.1"]
+  :dependencies [[cheshire "5.2.0"]
                  [org.clojure/clojure "1.5.1"]])
