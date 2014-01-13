@@ -160,6 +160,7 @@
 (defmethod ^:private validate* :object
   [{properties-schema :properties
     additional-schema :additionalProperties
+    required :required
     parent :extends
     :as schema} instance]
 
@@ -170,6 +171,15 @@
     (if (vector? parent)
       (doseq [s parent] (validate s instance))
       (validate parent instance)))
+
+  ;; validate required properties defined in schema
+  (when (vector? required)
+    (doseq [property-name required]
+      (let [prop-exists (and (map? instance)
+                             (or (contains? instance property-name)
+                                 (contains? instance (keyword property-name))))]
+        (when-not prop-exists
+          (invalid property-name :required)))))
 
   ;; validate properties defined in schema
   (doseq [[property-name property-schema] properties-schema]

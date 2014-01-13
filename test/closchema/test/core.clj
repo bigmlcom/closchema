@@ -360,6 +360,33 @@
 (deftest validate-type-array-with-number-input
          (is (not (validate {:type "array" :items {:type "integer"}} 1))))
 
+;; Test all combinations of :required array
+(deftest validate-with-new-required-keys
+  ;; With no :required params, the key is not required
+  (let [schema {:type "object"
+                :properties {:id {:type "integer"}}}]
+    (is (validate schema {})))
+
+  ;; With an empty :required param, the key is not required
+  (let [schema {:type "object" :required []
+                :properties {:id {:type "integer"}}}]
+    (is (validate schema {})))
+
+  ;; With a :required param, the key is required
+  (let [schema {:type "object" :required ["id"]
+                :properties {:id {:type "integer"}}}]
+    (is (not (validate schema {}))))
+
+  ;; With a :required param, a keyword key is accepted
+  (let [schema {:type "object" :required ["id"]
+                :properties {:id {:type "integer"}}}]
+    (is (validate schema {:id 12345})))
+
+  ;; With a :required param, a string key is accepted
+  (let [schema {:type "object" :required ["id"]
+                :properties {:id {:type "integer"}}}]
+    (is (validate schema {"id" 12345}))))
+
 ;; Test all combinations of :optional and :required
 (deftest validate-with-required-or-optional-keys
   ;; With no :required or :optional params, the key is not required
