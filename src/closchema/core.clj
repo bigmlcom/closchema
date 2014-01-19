@@ -16,13 +16,13 @@
 
 (def ^:dynamic process-errors
   "Default processing just outputs a boolean return."
-  (fn [errors] (= (count errors) 0)))
+  (fn [errors] (zero? (count errors))))
 
 (defn ^:private required?
   [schema]
   ; "required" has precedence over "optional",
   ; and properties are not required by default.
-  (if (not (nil? (:required schema)))
+  (if-not (nil? (:required schema))
     (:required schema)
     (= false (:optional schema))))
 
@@ -139,7 +139,7 @@
   (or (and (nil? instance) (not (required? schema)))
       (let [t (or t default-type)
             types (if (coll? t) t (vector t))]
-        (or (reduce #(or %1 %2)
+        (or (reduce some
                     (map (fn [t] ((basic-type-validations t) instance))
                          types))
             (invalid :type {:expected (map str types)
@@ -157,9 +157,23 @@
   (common-validate schema instance))
 
 
+(defn- find-matching-properties [instance [pattern schema]]
+  (when-let [matches (some #(re-find (re-pattern (name pattern)) (name %)) (keys instance))]
+    (let [prop-name (if (vector? matches) (first matches) matches)]
+      [(keyword prop-name) schema])))
+
+
+(defn- absorb-properties
+  [pattern-properties instance]
+  (if (map? instance)
+    (into {} (remove nil? (map (partial find-matching-properties instance) pattern-properties)))
+    {}))
+
+
 (defmethod ^:private validate* :object
   [{properties-schema :properties
     additional-schema :additionalProperties
+    pattern-properties :patternProperties
     required :required
     parent :extends
     :as schema} instance]
@@ -182,38 +196,40 @@
           (invalid property-name :required)))))
 
   ;; validate properties defined in schema
-  (doseq [[property-name property-schema] properties-schema]
-    (let [prop-exists (and (map? instance) (contains? instance property-name))]
-      (when-not (or prop-exists
-                    (not (required? property-schema)))
-        (invalid property-name :required))))
+  (let [properties-schema (merge properties-schema
+                                 (absorb-properties pattern-properties instance))]
+    (doseq [[property-name property-schema] properties-schema]
+      (let [prop-exists (and (map? instance) (contains? instance property-name))]
+        (when-not (or prop-exists
+                      (not (required? property-schema)))
+          (invalid property-name :required))))
 
-  ;; validate instance properties (using individual or additional schema)
-  (if (map? instance)
-    (doseq [[property-name property] instance]
-      (if-let [{requires :requires :as property-schema}
-               (or (and (map? properties-schema)
-                        (properties-schema property-name))
-                   (and (map? additional-schema) additional-schema))]
-        (do
-          (when (and requires property
-                     (nil? (get instance (keyword requires))))
-            (invalid requires :required {:required-by property-name}))
-
-
-          (when-not (and (not (required? property-schema)) (nil? instance))
-            (walk-in instance property-name
-                     (validate property-schema property))))))
-    (invalid :objects-must-be-maps {:properties properties-schema}))
+    ;; validate instance properties (using individual or additional schema)
+    (if (map? instance)
+      (doseq [[property-name property] instance]
+        (if-let [{requires :requires :as property-schema}
+                 (or (and (map? properties-schema)
+                          (properties-schema property-name))
+                     (and (map? additional-schema) additional-schema))]
+          (do
+            (when (and requires property
+                       (nil? (get instance (keyword requires))))
+              (invalid requires :required {:required-by property-name}))
 
 
-  ;; check additional properties
-  (when (false? additional-schema)
-    (if-let [additionals (set/difference (set (keys instance))
-                                      (set (keys properties-schema)))]
-      (when (> (count additionals) 0)
-        (invalid :additional-properties-not-allowed
-                 {:properties additionals})))))
+            (when-not (and (not (required? property-schema)) (nil? instance))
+              (walk-in instance property-name
+                       (validate property-schema property))))))
+      (invalid :objects-must-be-maps {:properties properties-schema}))
+
+
+    ;; check additional properties
+    (when (false? additional-schema)
+      (if-let [additionals (set/difference (set (keys instance))
+                                           (set (keys properties-schema)))]
+        (when (pos? (count additionals))
+          (invalid :additional-properties-not-allowed
+                   {:properties additionals}))))))
 
 
 (defmethod ^:private validate* :array
@@ -307,6 +323,6 @@
                  {:exclusiveMinimum (schema :exclusiveMinimum) :value instance })))
 
     (when (schema :divisibleBy)
-      (if-not (= 0 (mod instance (schema :divisibleBy)))
+      (if-not (zero? (mod instance (schema :divisibleBy)))
         (invalid :value-not-divisible-by
                  {:divisibleBy (schema :divisibleBy) :value instance})))))

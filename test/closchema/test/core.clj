@@ -94,6 +94,13 @@
     (is (not (validate s {:id 1 :name "john" :address2 "country"}))
         "should not validate nem required is not present")))
 
+(deftest validate-pattern-properties
+  (let [s (merge base-schema {:additionalProperties false :patternProperties {"^tes(t)+$" {:type "string"}}})]
+    (is (not (validate s {:id 1 :name "wine" :age "13 years"}))
+        "should not allow any properties that are not defined in schema")
+    (is (validate s {:id 1 :name "wine" :test "good"})
+        "should allow any properties that are defined in pattern")))
+
 (deftest validate-items-any
   (is (and (validate {:type "array"} [ 1 2 3])
            (validate {:type "array" :items []} [1 "2" 3])
