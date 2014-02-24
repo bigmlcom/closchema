@@ -26,6 +26,17 @@
     (:required schema)
     (= false (:optional schema))))
 
+(def ^{:doc "Known basic types."}
+     basic-type-validations
+     { "object" #(map? %)
+       "array" #(or (seq? %) (and (coll? %) (not (map? %))))
+       "string" #(string? %)
+       "number" #(number? %)
+       "integer" #(integer? %)
+       "boolean" #(instance? Boolean %)
+       "null" #(nil? %)
+       "any" (constantly true)})
+
 (defmacro with-validation-context
   "Defines a binding to allow access to the root object and to enable
    invalidations to be captured. This strategy removes the need of
@@ -57,7 +68,7 @@
   "Dispatch on object type for validation. If not implemented,
    performs only basic type validation. Users can extend which types
    are supported by implementing validation for new types."
-  (fn [schema instance]
+  (fn [schema instance validators]
     (cond
       (or (= (:type schema) "integer") (= (:type schema) "number")) ::value
       (string? schema) ::simple
@@ -66,12 +77,23 @@
       (:enum schema) ::enum
       (:type schema) (keyword (:type schema)))))
 
+(defn- merge-fn
+  "Merges two functions together and returns a function which ORs
+  their results."
+  [a b]
+  (fn [x] (or (a x) (b x))))
+
 (defn validate
   "Entry point. A validation context is created and validation is
    dispatched to the appropriated multimethod."
-  [schema instance]
-  (with-validation-context
-    (validate* schema instance)))
+  [schema instance & {:keys [extra-validators passthrough-validators]}]
+  (let [validators (merge (if extra-validators
+                            (merge-with merge-fn
+                                        basic-type-validations extra-validators)
+                            basic-type-validations)
+                          passthrough-validators)]
+    (with-validation-context
+      (validate* schema instance validators))))
 
 (defn- read-schema* [loc]
   (cheshire/parse-string (slurp (io/resource loc)) true))
@@ -94,67 +116,61 @@
 
 (def ^:private default-type "object")
 
-(defmethod ^:private validate* nil [schema instance]
-  (validate (merge schema {:type default-type}) instance))
+(defmethod ^:private validate* nil [schema instance validators]
+  (validate (merge schema {:type default-type}) instance
+            :passthrough-validators validators))
 
-(defmethod ^:private validate* ::ref [schema instance]
-  (validate (read-schema (:$ref schema)) instance))
+(defmethod ^:private validate* ::ref [schema instance validators]
+  (validate (read-schema (:$ref schema)) instance
+            :passthrough-validators validators))
 
 ;; This implementation of the multimethod is needed so that
 ;; Union types can be simple (e.g., "integer") or complex
 ;; (e.g., {:type "object" . . .}).  It causes strings like
 ;; "number" to constitute a valid json spec according to
 ;; validate, but that doesn't seem like a bad idea.
-(defmethod ^:private validate* ::simple [schema instance]
-  (validate {:type schema} instance))
+(defmethod ^:private validate* ::simple [schema instance validators]
+  (validate {:type schema} instance
+            :passthrough-validators validators))
 
 ;; Basically, try all the types with the error queue bound to a "fresh"
 ;; error queue.  If any of the resulting queues are empty at the
 ;; end, the instance validated and there's no reason to do anything.
 ;; If not, we pick one of the types (the first one, because why not?)
 ;; and put it through validation again to populate the error queue
-(defmethod validate* ::union [schema instance]
+(defmethod validate* ::union [schema instance validators]
   (let [errors (map #(binding [*errors* (atom '()) *path* []]
-                       (validate % instance) @*errors*)
+                       (validate % instance
+                                 :passthrough-validators validators)
+                       @*errors*)
                     (:type schema))]
     (when-not (some empty? errors)
       (invalid :matches-no-type-in-union
                {:instance instance :errors (first (sort-by count errors))}))))
 
-(def ^{:doc "Known basic types."}
-     basic-type-validations
-     { "object" #(map? %)
-       "array" #(or (seq? %) (and (coll? %) (not (map? %))))
-       "string" #(string? %)
-       "number" #(number? %)
-       "integer" #(integer? %)
-       "boolean" #(instance? Boolean %)
-       "null" #(nil? %)
-       "any" (constantly true)})
-
 
 (defn- check-basic-type
   "Validate basic type definition for known types."
-  [{t :type :as schema} instance]
+  [{t :type :as schema} instance validators]
   (or (and (nil? instance) (not (required? schema)))
       (let [t (or t default-type)
             types (if (coll? t) t (vector t))]
         (or (reduce some
-                    (map (fn [t] ((basic-type-validations t) instance))
+                    (map (fn [t] ((validators t) instance))
                          types))
             (invalid :type {:expected (map str types)
                             :actual (str (type instance))})))))
 
 
-(defn- common-validate [schema instance]
-  (check-basic-type schema instance)
+(defn- common-validate [schema instance validators]
+  (check-basic-type schema instance validators)
   (comment TODO
            disallow
            extends))
 
 
-(defmethod ^:private validate* :default [schema instance]
-  (common-validate schema instance))
+(defmethod ^:private validate* :default [schema instance validators]
+  (common-validate schema instance validators))
 
 
 (defn- find-matching-properties [instance [pattern schema]]
@@ -176,15 +192,16 @@
     pattern-properties :patternProperties
     required :required
     parent :extends
-    :as schema} instance]
+    :as schema} instance validators]
 
-  (common-validate schema instance)
+  (common-validate schema instance validators)
 
   ;; "parent" schema validation
   (when-not (nil? parent)
     (if (vector? parent)
-      (doseq [s parent] (validate s instance))
-      (validate parent instance)))
+      (doseq [s parent] (validate s instance
+                                  :passthrough-validators validators))
+      (validate parent instance :passthrough-validators validators)))
 
   ;; validate required properties defined in schema
   (when (vector? required)
@@ -217,7 +234,8 @@
               (invalid requires :required {:required-by property-name}))
             (when-not (and (not (required? property-schema)) (nil? instance))
               (walk-in instance property-name
-                       (validate property-schema property))))))
+                       (validate property-schema property
+                                 :passthrough-validators validators))))))
       (invalid :objects-must-be-maps {:properties properties-schema}))
 
     ;; check additional properties
@@ -231,9 +249,9 @@
 
 (defmethod ^:private validate* :array
   [{items-schema :items
-    unique? :uniqueItems :as schema} instance]
+    unique? :uniqueItems :as schema} instance validators]
 
-  (common-validate schema instance)
+  (common-validate schema instance validators)
 
   ;; specific array validation
   (when (sequential? instance)
@@ -269,12 +287,12 @@
                                      :properties
                                      (zipmap (range (count items-schema))
                                              items-schema)}))]
-        (validate obj-schema obj-array)))))
+        (validate obj-schema obj-array :passthrough-validators validators)))))
 
 
 (defmethod ^:private validate* :string
-  [schema instance]
-  (common-validate schema instance)
+  [schema instance validators]
+  (common-validate schema instance validators)
   (when (string? instance)
     (when (schema :maxLength)
       (if-not (>= (schema :maxLength) (count instance))
@@ -290,14 +308,14 @@
                  {:pattern (schema :pattern) :actual instance})))))
 
 (defmethod ^:private validate* ::enum
-  [schema instance]
+  [schema instance validators]
   (if-not (true? (some #(= % instance) (schema :enum)))
     (invalid :value-not-in-enum {:enum (schema :enum) :value instance })))
 
 
 (defmethod ^:private validate* ::value
-  [schema instance]
-  (common-validate schema instance)
+  [schema instance validators]
+  (common-validate schema instance validators)
   (when (number? instance)
     (when (schema :maximum)
       (if-not (>= (schema :maximum) instance)

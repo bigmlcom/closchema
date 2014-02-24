@@ -446,3 +446,13 @@
                                                  :required true
                                                  :optional true}}}]
     (is (not (validate schema {})))))
+
+(deftest validate-extra-validators
+  (let [schema {:type "object" :properties {:id {:type "integer"
+                                                 :required true}}}]
+    (is (not (validate schema {:id "banana"})))
+    (is (validate schema {:id "banana"}
+                  :extra-validators {"integer" (fn [_] true)}))
+    (is (not (validate schema {:id 10M})))
+    (is (validate schema {:id 10M}
+                  :extra-validators {"integer" (fn [x] (instance? BigDecimal x))}))))
