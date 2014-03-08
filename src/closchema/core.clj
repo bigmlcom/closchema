@@ -319,22 +319,22 @@
   (when (number? instance)
     (when (schema :maximum)
       (if-not (>= (schema :maximum) instance)
-        (invalid :value-greater-then-maximum
+        (invalid :value-greater-than-maximum
                  {:maximum (schema :maximum) :value instance })))
 
     (when (schema :minimum)
       (if-not (<= (schema :minimum) instance)
-        (invalid :value-lower-then-minimum
+        (invalid :value-lower-than-minimum
                  {:minimum (schema :minimum) :value instance })))
 
     (when (schema :exclusiveMaximum)
       (if-not (> (schema :exclusiveMaximum) instance)
-        (invalid :value-greater-or-equal-then-maximum
+        (invalid :value-greater-or-equal-than-maximum
                  {:exclusiveMaximum (schema :exclusiveMaximum) :value instance })))
 
     (when (schema :exclusiveMinimum)
       (if-not (< (schema :minimumCanEqual) instance)
-        (invalid :value-lower-or-equal-then-minimum
+        (invalid :value-lower-or-equal-than-minimum
                  {:exclusiveMinimum (schema :exclusiveMinimum) :value instance })))
 
     (when (schema :divisibleBy)
