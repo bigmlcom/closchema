@@ -349,9 +349,9 @@
   (is (not (validate extends-mult {:human? false :odor "roses"}))))
 
 (deftest validate-any-type
-  (is (= (validate {:type "any"} 1)))
-  (is (= (validate {:type "any"} [1 2 3])))
-  (is (= (validate {:type "any"} {:a 3}))))
+  (is (validate {:type "any"} 1))
+  (is (validate {:type "any"} [1 2 3]))
+  (is (validate {:type "any"} {:a 3})))
 
 (deftest validate-type-string-with-length-limits
   (is (not (validate {:type "string" :minLength 3} 1)))
