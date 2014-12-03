@@ -295,21 +295,21 @@
   (common-validate schema instance validators)
   (when (string? instance)
     (when (schema :maxLength)
-      (if-not (>= (schema :maxLength) (count instance))
+      (when-not (>= (schema :maxLength) (count instance))
         (invalid :max-length-exceeded
                  {:maxLength (schema :maxLength) :actual (count instance)})))
     (when (schema :minLength)
-      (if-not (<= (schema :minLength) (count instance))
+      (when-not (<= (schema :minLength) (count instance))
         (invalid :min-length-not-reached
                  {:minLength (schema :minLength) :actual (count instance)})))
     (when (schema :pattern)
-      (if-not (.matches instance (schema :pattern))
+      (when-not (.matches instance (schema :pattern))
         (invalid :pattern-not-matched
                  {:pattern (schema :pattern) :actual instance})))))
 
 (defmethod ^:private validate* ::enum
   [schema instance validators]
-  (if-not (true? (some #(= % instance) (schema :enum)))
+  (when-not (true? (some #(= % instance) (schema :enum)))
     (invalid :value-not-in-enum {:enum (schema :enum) :value instance })))
 
 
@@ -318,26 +318,26 @@
   (common-validate schema instance validators)
   (when (number? instance)
     (when (schema :maximum)
-      (if-not (>= (schema :maximum) instance)
+      (when-not (>= (schema :maximum) instance)
         (invalid :value-greater-than-maximum
                  {:maximum (schema :maximum) :value instance })))
 
     (when (schema :minimum)
-      (if-not (<= (schema :minimum) instance)
+      (when-not (<= (schema :minimum) instance)
         (invalid :value-lower-than-minimum
                  {:minimum (schema :minimum) :value instance })))
 
     (when (schema :exclusiveMaximum)
-      (if-not (> (schema :exclusiveMaximum) instance)
+      (when-not (> (schema :exclusiveMaximum) instance)
         (invalid :value-greater-or-equal-than-maximum
                  {:exclusiveMaximum (schema :exclusiveMaximum) :value instance })))
 
     (when (schema :exclusiveMinimum)
-      (if-not (< (schema :minimumCanEqual) instance)
+      (when-not (< (schema :minimumCanEqual) instance)
         (invalid :value-lower-or-equal-than-minimum
                  {:exclusiveMinimum (schema :exclusiveMinimum) :value instance })))
 
     (when (schema :divisibleBy)
-      (if-not (zero? (mod instance (schema :divisibleBy)))
+      (when-not (zero? (mod instance (schema :divisibleBy)))
         (invalid :value-not-divisible-by
                  {:divisibleBy (schema :divisibleBy) :value instance})))))
