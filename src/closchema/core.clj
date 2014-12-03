@@ -303,7 +303,7 @@
         (invalid :min-length-not-reached
                  {:minLength (schema :minLength) :actual (count instance)})))
     (when (schema :pattern)
-      (when-not (.matches instance (schema :pattern))
+      (when-not (re-find (re-pattern (schema :pattern)) instance)
         (invalid :pattern-not-matched
                  {:pattern (schema :pattern) :actual instance})))))
 

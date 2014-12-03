@@ -204,7 +204,8 @@
              (validate s "123fooBar"))
         "pattern matches")
     (is (and (not  (validate s "foo-Bar")) (not (validate s "foo_bar")))
-        "pattern doesn't match")))
+        "pattern doesn't match"))
+  (is (validate {:type "string" :pattern "es"} "expression")))
 
 (deftest validate-common-numbers
   (let [s {:type "number"}]
