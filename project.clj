@@ -3,4 +3,4 @@
   :license {:name "MIT License" :url "http://opensource.org/licenses/MIT"}
   :url "https://github.com/bigmlcom/closchema"
   :dependencies [[cheshire "5.3.1"]
-                 [org.clojure/clojure "1.5.1"]])
+                 [org.clojure/clojure "1.6.0"]])
