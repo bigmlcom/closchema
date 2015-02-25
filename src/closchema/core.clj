@@ -310,7 +310,7 @@
 (defmethod ^:private validate* ::enum
   [schema instance validators]
   (when-not (true? (some #(= % instance) (schema :enum)))
-    (invalid :value-not-in-enum {:enum (schema :enum) :value instance })))
+    (invalid :value-not-in-enum {:enum (schema :enum) :value instance})))
 
 
 (defmethod ^:private validate* ::value
@@ -320,24 +320,31 @@
     (when (schema :maximum)
       (when-not (>= (schema :maximum) instance)
         (invalid :value-greater-than-maximum
-                 {:maximum (schema :maximum) :value instance })))
+                 {:maximum (schema :maximum)
+                  :value instance})))
 
     (when (schema :minimum)
       (when-not (<= (schema :minimum) instance)
         (invalid :value-lower-than-minimum
-                 {:minimum (schema :minimum) :value instance })))
+                 {:minimum (schema :minimum)
+                  :value instance})))
 
     (when (schema :exclusiveMaximum)
-      (when-not (> (schema :exclusiveMaximum) instance)
+      (when-not (> (schema :maximum) instance)
         (invalid :value-greater-or-equal-than-maximum
-                 {:exclusiveMaximum (schema :exclusiveMaximum) :value instance })))
+                 {:exclusiveMaximum (schema :exclusiveMaximum)
+                  :maximum (schema :maximum)
+                  :value instance})))
 
     (when (schema :exclusiveMinimum)
-      (when-not (< (schema :minimumCanEqual) instance)
+      (when-not (< (schema :minimum) instance)
         (invalid :value-lower-or-equal-than-minimum
-                 {:exclusiveMinimum (schema :exclusiveMinimum) :value instance })))
+                 {:exclusiveMinimum (schema :exclusiveMinimum)
+                  :minimum (schema :minimum)
+                  :value instance})))
 
     (when (schema :divisibleBy)
       (when-not (zero? (mod instance (schema :divisibleBy)))
         (invalid :value-not-divisible-by
-                 {:divisibleBy (schema :divisibleBy) :value instance})))))
+                 {:divisibleBy (schema :divisibleBy)
+                  :value instance})))))
