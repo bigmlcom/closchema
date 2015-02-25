@@ -213,23 +213,23 @@
     (is (not (validate s "2")) "not a number")))
 
 (deftest validate-max-number
-  (let [s {:type '"number" :exclusiveMaximum 5}
-        t {:type '"integer" :exclusiveMaximum 5}]
+  (let [s {:type '"number" :maximum 5 :exclusiveMaximum true}
+        t {:type '"integer" :maximum 5}]
     (is (validate s 4) "lower than maximum")
     (is (and (not (validate s 6)) (not (validate s 5)))
         "greater or equal than maximum")
     (is (validate t 4) "lower than maximum")
-    (is (and (not (validate t 6)) (not (validate t 5)))
+    (is (and (not (validate t 6)) (validate t 5))
         "greater or equal than maximum")))
 
 (deftest validate-min-number
-  (let [s {:type '"number" :exclusiveMinimum 2}
-        t {:type '"integer" :exclusiveMinimum 2}]
+  (let [s {:type '"number" :minimum 2 :exclusiveMinimum true}
+        t {:type '"integer" :minimum 2}]
     (is (validate s 3) "above minimum")
     (is (and (not (validate s 1)) (not (validate s 2)))
         "less or equal than minimum")
     (is (validate t 3) "above minimum")
-    (is (and (not (validate t 1)) (not (validate t 2)))
+    (is (and (not (validate t 1)) (validate t 2))
         "less or equal than minimum")))
 
 (deftest validate-max-number
