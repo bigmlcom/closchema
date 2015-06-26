@@ -174,15 +174,20 @@
 
 
 (defn- find-matching-properties [instance [pattern schema]]
-  (when-let [matches (some #(re-find (re-pattern (name pattern)) (name %)) (keys instance))]
-    (let [prop-name (if (vector? matches) (first matches) matches)]
-      [(keyword prop-name) schema])))
+  (when-let [matches (keep identity
+                           (map #(re-matches (re-pattern (name pattern))
+                                             (name %))
+                                (keys instance)))]
+    (map #(vector (keyword (if (coll? %1) (first %1) %1)) %2)
+         matches (repeat schema))))
 
 
 (defn- absorb-properties
   [pattern-properties instance]
   (if (map? instance)
-    (into {} (remove nil? (map (partial find-matching-properties instance) pattern-properties)))
+    (into {} (reduce concat (remove nil? (map (partial find-matching-properties
+                                                       instance)
+                                              pattern-properties))))
     {}))
 
 
@@ -193,7 +198,6 @@
     required :required
     parent :extends
     :as schema} instance validators]
-
   (common-validate schema instance validators)
 
   ;; "parent" schema validation
