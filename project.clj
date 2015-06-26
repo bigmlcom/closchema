@@ -1,4 +1,4 @@
-(defproject bigml/closchema "0.6-SNAPSHOT"
+(defproject bigml/closchema "0.6"
   :description "Implements the JSON Schema specification."
   :license {:name "MIT License" :url "http://opensource.org/licenses/MIT"}
   :url "https://github.com/bigmlcom/closchema"
