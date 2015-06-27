@@ -5,6 +5,8 @@ A clojure library that implements
 
 This library is distributed under the MIT license (see LICENSE).
 
+[![Clojars Project](http://clojars.org/bigml/closchema/latest-version.svg)](http://clojars.org/bigml/closchema)
+
 ## Examples
 
 ```
