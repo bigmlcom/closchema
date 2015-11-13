@@ -152,14 +152,13 @@
 (defn- check-basic-type
   "Validate basic type definition for known types."
   [{t :type :as schema} instance validators]
-  (or (and (nil? instance) (not (required? schema)))
-      (let [t (or t default-type)
-            types (if (coll? t) t (vector t))]
-        (or (reduce some
-                    (map (fn [t] ((validators t) instance))
-                         types))
-            (invalid :type {:expected (map str types)
-                            :actual (str (type instance))})))))
+  (let [t (or t default-type)
+        types (if (coll? t) t (vector t))]
+    (or (reduce some
+                (map (fn [t] ((validators t) instance))
+                     types))
+        (invalid :type {:expected (map str types)
+                        :actual (str (type instance))}))))
 
 
 (defn- common-validate [schema instance validators]

@@ -63,8 +63,8 @@
         "should not accept when required property is not present")
     (is (not (validate s {:id "1" :name "bag"}))
         "should not accept when property type is incorrect")
-    (is (validate s {:id 1 :name "test" :description nil})
-        "should accept an optional property with value null")))
+    (is (validate s {:id 1 :name "test"})
+        "should accept a missing property if optional")))
 
 (deftest validate-false-additional-properties
   (let [s (merge base-schema {:additionalProperties false})]
@@ -180,7 +180,8 @@
 
 (deftest validate-common-string
   (let [s {:type "string"}]
-    (is (validate s "foobar") "should validate with string")))
+    (is (validate s "foobar") "should validate with string")
+    (is (not (validate s nil)) "not validate if nil")))
 
 (deftest validate-minimum-string
   (let [s {:type "string" :minLength 3}]
@@ -212,7 +213,8 @@
 (deftest validate-common-numbers
   (let [s {:type "number"}]
     (is (and (validate s 1) (validate s -2) (validate s 3.5)) "is a number")
-    (is (not (validate s "2")) "not a number")))
+    (is (not (validate s "2")) "not a number")
+    (is (not (validate s nil)) "not validate nil")))
 
 (deftest validate-max-number
   (let [s {:type '"number" :maximum 5 :exclusiveMaximum true}
